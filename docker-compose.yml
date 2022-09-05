@@ -1,0 +1,81 @@
+version: "3"
+
+services:
+    zookeeper:
+        image: ""
+        hostname: zookeeper
+        ports:
+            -   "2181:2181"
+        environment:
+            ZOOKEEPER_CLIENT_PORT: 2181
+            ZOOKEEPER_TICK_TIME: 2000
+        logging:
+            driver: "json-file"
+            options:
+                max-size: "250m"
+                max-file: "3"
+        networks:
+            - backend
+
+    kafka:
+        image: ""
+        environment:
+            KAFKA_BROKER_ID: 1
+            KAFKA_ZOOKEEPER_CONECT: 'zookeeper:2181'
+            KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://127.0.0.1:9092
+            KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+            KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+            KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+            KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+            KAFKA_CONFLUENT_LICENSE_TOPIC_REPLICATION_FACTOR: 1
+            KAFKA_CONFLUENT_BALANCER_TOPIC_REPLICATION_FACTOR: 1
+            KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+            KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+            KAFKA_CONFLUENT_SCHEMA_REGISTRY_URL: http://schema-registry:8081
+        hostname: broker
+        container_name: broker
+        depends_on:
+            -   zookeeper
+        ports:
+            -   "9092:9092"
+        logging:
+            driver: "json-file"
+            options:
+                max-size: "250m"
+                max-file: "3"
+        networks:
+            - backend
+
+    schema-registry:
+        image: ""
+        hostname: schema-registry
+        depends_on:
+            -   kafka
+        ports:
+            -   "8081:8081"
+        environment:
+            SCHEMA_REGISTRY_HOST_NAME: schema-registry
+            SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: 'kafka:29092'
+            SCHEMA_REGISTRY_LISTENERS: http://0.0.0.0:8081
+        networks:
+            - backend
+
+    control-center:
+        image: ""
+        hostname: control-center
+        depends_on:
+            -   zookeeper
+            - kafka
+            - schema-registry
+        ports:
+            -   "9021:9021"
+        environment:
+            CONTROL_CENTER_BOOTSTRAP_SERVERS: 'kafka:29092'
+            CONTROL_CENTER_ZOOKEEPER_CONNECT: 'zookeeper:2181'
+            CONTROL_CENTER_SCHEMA_REGISTRY_URL: "http://schema-registry:8081"
+            CONTROL_CENTER_REPLICATION_FACTOR: 1
+            CONTROL_CENTER_INTERNAL_TOPICS_PARTITIONS: 1
+            CONTROL_CENTER_MONITORING_INTERCEPTOR_TOPIC_PARTITIONS: 1
+            PORT: 9021
+        networks:
+            - backend
